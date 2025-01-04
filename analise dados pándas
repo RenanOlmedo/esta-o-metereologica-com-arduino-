@@ -1,0 +1,73 @@
+import pandas as pd
+from docx import Document
+from docx.shared import Inches
+from docx.shared import Pt, RGBColor
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
+
+
+
+def analisar_dados(arquivo_csv):
+    # Carregar o arquivo CSV em um DataFrame
+    df = pd.read_csv(arquivo_csv)
+
+    # Converter a coluna 'created_at' para o tipo datetime
+    df['created_at'] = pd.to_datetime(df['created_at'])
+
+    # Extrair a parte da data e criar a coluna 'data'
+    df['data'] = df['created_at'].dt.date
+
+    # Selecionar apenas as colunas de interesse (field1, field2, field3, field4)
+    df = df[['data', 'field1', 'field2', 'field3', 'field4']]
+
+    # Renomear colunas para os nomes desejados
+    df.rename(columns={'field1': 'umidade', 'field2': 'temperatura', 'field3': 'pf_relativa', 'field4': 'pf_absoluta'}, inplace=True)
+
+    # Calcular médias, máximas e mínimas por dia
+    media_por_dia = df.groupby('data').mean()
+    maximo_por_dia = df.groupby('data').max()
+    minimo_por_dia = df.groupby('data').min()
+
+    # Criar documento do Word
+    doc = Document()
+
+    # Adicionar médias ao documento
+    add_statistics_to_doc(doc, 'Médias por Dia', media_por_dia)
+
+    # Adicionar máximas ao documento
+    add_statistics_to_doc(doc, 'Máximas por Dia', maximo_por_dia)
+
+    # Adicionar mínimas ao documento
+    add_statistics_to_doc(doc, 'Mínimas por Dia', minimo_por_dia)
+
+    # Salvar o documento
+    doc.save("C://Users//rferr//OneDrive//Documentos//dados analise//analise_dados.docx")
+
+
+def add_statistics_to_doc(doc, title, data):
+    # Adicionar título
+    doc.add_heading(title, level=2)
+
+    # Adicionar tabela
+    table = doc.add_table(rows=len(data) + 1, cols=len(data.columns) + 1)  # Adicionar uma coluna para a data
+
+    # Formatar cabeçalho
+    hdr_cells = table.rows[0].cells
+    hdr_cells[0].text = 'Data'  # Adicionar cabeçalho para a data
+    for i, col in enumerate(data.columns, start=1):  # Começar com 1 para deixar espaço para a coluna de data
+        hdr_cells[i].text = col
+        hdr_cells[i].paragraphs[0].runs[0].font.bold = True
+
+    # Preencher dados
+    for row_idx, (data_index, row) in enumerate(data.iterrows(), 1):
+        row_cells = table.rows[row_idx].cells
+        row_cells[0].text = str(data_index)  # Preencher a célula da data
+        for col_idx, value in enumerate(row, start=1):  # Começar com 1 para deixar espaço para a coluna de data
+            if col_idx != 0:  # Excluir a coluna de data
+                row_cells[col_idx].text = "{:.2f}".format(value)  # Arredondar para duas casas decimais
+            else:
+                row_cells[col_idx].text = str(value)  # Manter a coluna de data sem arredondamento
+
+
+# Chamar a função para analisar os dados
+analisar_dados("-----")
